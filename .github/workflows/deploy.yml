@@ -15,17 +15,18 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        # 이 리전은 ECS 클러스터가 위치한 리전입니다. (서울)
+        # ECS 클러스터가 위치한 리전입니다. (ap-northeast-2)
         aws-region: ap-northeast-2
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         
-    # --- ECR Public 로그인을 전용 액션으로 대체 (더 안정적) ---
+    # --- ECR Public 로그인을 전용 액션으로 대체 및 리전 지정 ---
     - name: Login to Amazon ECR Public Registry
       uses: aws-actions/amazon-ecr-login@v2
       with:
-        # ECR Public Registry ID와 레지스트리 URL을 직접 제공합니다.
         registry-type: public
+        # ECR Public 인증은 반드시 us-east-1 리전으로 진행해야 합니다.
+        region: us-east-1 
         
     - name: Build Docker image
       run: |
