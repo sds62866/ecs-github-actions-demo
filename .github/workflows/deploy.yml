@@ -2,7 +2,7 @@ name: Deploy to Amazon ECS
 
 on:
   push:
-    branches: [ "main" ]   # 다른 브랜치에서 동작시키고 싶다면 변경 (예: "master")
+    branches: [ "main" ]
 
 jobs:
   deploy:
@@ -15,30 +15,39 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }} 
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }} 
-        aws-region: ap-northeast-2   
-
-    - name: Login to Amazon ECR Public
-      run: |
-        aws ecr-public get-login-password --region us-east-1 | \     
-        docker login --username AWS --password-stdin public.ecr.aws/p1o5p3v5/ecs-demo-repo
-
+        # 이 리전은 ECS 클러스터가 위치한 리전입니다. (서울)
+        aws-region: ap-northeast-2
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        
+    # --- ECR Public 로그인을 전용 액션으로 대체 (더 안정적) ---
+    - name: Login to Amazon ECR Public Registry
+      uses: aws-actions/amazon-ecr-login@v2
+      with:
+        # ECR Public Registry ID와 레지스트리 URL을 직접 제공합니다.
+        registry-type: public
+        
     - name: Build Docker image
       run: |
-        docker build -t ecs-demo-repo:latest .
-        docker tag ecs-demo-repo:latest public.ecr.aws/p1o5p3v5/ecs-demo-repo:latest
-
+        # ECR Public 레지스트리 주소와 레포지토리 이름을 사용합니다.
+        REGISTRY_URL="public.ecr.aws/p1o5p3v5"
+        REPO_NAME="ecs-demo-repo"
+        IMAGE_URI="${REGISTRY_URL}/${REPO_NAME}:latest"
+        
+        docker build -t ${IMAGE_URI} .
+        
     - name: Push Docker image to ECR
       run: |
-        docker push public.ecr.aws/p1o5p3v5/ecs-demo-repo:latest
+        REGISTRY_URL="public.ecr.aws/p1o5p3v5"
+        REPO_NAME="ecs-demo-repo"
+        IMAGE_URI="${REGISTRY_URL}/${REPO_NAME}:latest"
+        
+        docker push ${IMAGE_URI}
 
     - name: Deploy to ECS (Fargate)
       run: |
         aws ecs update-service \
-          --cluster ecs-demo-cluster \     # 본인 ECS 클러스터 이름으로 변경
-          --service ecs-demo-service \     # 본인 ECS 서비스 이름으로 변경
+          --cluster ecs-demo-cluster \
+          --service ecs-demo-service \
           --force-new-deployment \
           --region ap-northeast-2
-
-
